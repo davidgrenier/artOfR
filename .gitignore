@@ -1,0 +1,6 @@
+*.Rout
+.RData
+*.pdf
+*/
+*.pgm
+*.txt
