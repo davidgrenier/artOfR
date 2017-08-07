@@ -5,6 +5,10 @@ file2 <- "data/DB"
 # table(count.fields(file1,sep=","))
 da <- read.csv(file1,stringsAsFactors=F)
 da
+for (col in seq(da))
+    print(unique(sort(da[,col])))
+# da
 db <- read.csv(file2,header=F,stringsAsFactors=F)
-db
+# db
 merge(da,db,by.x=1,by.y=1)
+
