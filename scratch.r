@@ -1,3 +1,2 @@
-txt <- scan("data/nyt.txt","")
-wl <- split(seq(txt),txt)
-wl[order(sapply(wl,length))]
+aba <- read.csv("data/abalone.data")
+by(aba,aba[1],function (m) lm(m[,2]~m[,3]))

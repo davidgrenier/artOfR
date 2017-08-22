@@ -111,14 +111,137 @@ w <- 12
 f <- function (y) {
     d <- 8
     h <- function () d*(w+y)
-    h
+    print(ls(envir=parent.frame()))
+    h()
 }
+f(2)
+
 # environment(f())
 # ?.GlobalEnv
 ls()
 ls.str()
 # ?environment
 # ?ls
+# ?parent.frame
 
 facto <- function (n) if (n < 1) 1 else n * facto(n-1)
 facto(5)
+
+w <- 12
+f <- function (y) {
+    d <- 8
+    w <- w+1
+    y <- y-2
+    print(ls.str())
+    print(ls.str(envir=parent.frame()))
+    h <- function () d*(w+y)
+    h()
+}
+t <- 4
+f(t)
+w
+t
+
+init <- 8
+facto <- function (n, i) {
+    if (n < 1)
+        1
+    else
+        n * facto(n-1, i+1)
+}
+facto(init, 0)
+
+f <- function () {
+    a <- 1
+    g(a)+a
+}
+g <- function (aa) {
+    b <- 2
+    print(ls(envir=parent.frame()))
+    showframe(0)
+    showframe(1)
+    aab <- h(aa+b)
+    aab
+}
+h <- function (aaa) {
+    c <- 3
+    aaa+c
+}
+showframe <- function (upn) {
+    env <-
+        if (upn < 0)
+            .GlobalEnv
+        else
+            parent.frame(upn+1)
+    vars <- ls(envir=env)
+    for (vr in vars) {
+        vrg <- get(vr,envir=env)
+        if (!is.function(vrg)) {
+            cat(vr,":\n",sep="")
+            print(vrg)
+        }
+    }
+}
+f()
+
+# aa:
+# [1] 1
+# aab:
+# [1] 6
+# b:
+# [1] 2
+# a:
+# [1] 1
+# [1] 7
+
+two <- function (u) {
+    u <<- 2*u
+    cat(c("",u,"\n"),sep=">")
+    z <- 2*z
+}
+x <- 1
+z <- 3
+two(x)
+x
+z
+u
+
+f <- function () {
+    inc <- function () { x <<- x+1 }
+    x <- 3
+    inc()
+    x
+}
+f()
+x
+
+x <- 1
+z <- 3
+two <- function (u) {
+    assign("u",3*u)
+    assign("u",2*u,pos=.GlobalEnv)
+    u
+}
+two(x)
+x
+u
+
+q <- "a"
+t <- "q"
+l <- 0
+rw <- c(list(evnttime=q,evnttype=t),l)
+as.data.frame(rw)
+
+x <- 1
+z <- 3
+two <- function (b) {
+    g <- function () {
+        assign("u",3)
+        print(u)
+    }
+    g()
+    b
+}
+two(x)
+x
+u
