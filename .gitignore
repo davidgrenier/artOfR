@@ -4,3 +4,6 @@
 */
 *.pgm
 *.txt
+*.png
+*.aux
+*.log
