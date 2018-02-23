@@ -1,5 +1,6 @@
-colors <- rainbow(8)
 data <- read.csv("AllYears.csv")
+data <- data[!data$Saison %in% c(2007),]
+colors <- rainbow(length(unique(data$Saison)))
 names(colors) <- unique(data$Saison)
 levels <- unique(c(data[data$Saison==2015,]$Semaine,data$Semaine))
 withLabels <- seq(levels)
@@ -20,8 +21,8 @@ data$max.Tests <- unlist(by(data$Tests,data[1],cummax))
 metric.Tests = data$Tests/data$max.Tests
 # for (alpha in (10:50)/100) {
 #     for (beta in (10:min(50,90-alpha))/100) {
-for (alpha in (10:90)/100) {
-    for (cuts in (4:12)) {
+for (alpha in 0.77) {
+    for (cuts in 9) {
         beta <- 1-alpha
         data$metric6 <- alpha*data$Ratio + beta*metric.Tests
         hideYears <- c(2018,2007)
@@ -51,6 +52,10 @@ for (alpha in (10:90)/100) {
 #  metric.moy    week.moy  week.ecart week.ecartP         num 
 #   0.1479733   7.7500000   0.7100000   0.0916129   6.0000000 
 
+y = function (x) x*7.75/0.1479
+
+data$prediction <- y(data$metric6)
+
 # metric.A = data$Positifs.A/data$max.A
 # metric.B = data$Positifs.B/data$max.B
 # data$metric <- (alpha*ifelse(is.na(metric.A),1,metric.A)
@@ -62,18 +67,26 @@ for (alpha in (10:90)/100) {
 # data$metric5 <- data$Ratio + 0.55*ifelse(is.na(metric.Tests),1,metric.Tests)
 
 # data$endIndex <- max(data$endIndex)-data$endIndex
+data[c("Saison","Semaine","endIndex","prediction")]
+pd <- data[c("Saison","Semaine","endIndex","prediction")][data$Semaine > 10 & data$endIndex > 1,]
+pd$diff <- abs(pd$prediction-pd$endIndex)/pd$prediction*100
+pd
+mean(pd$diff)
+sqrt(var(pd$diff))
 
-pdf("test.pdf",width=12,height=7.5)
-# weeks <- ordered(seq(levels),labels=levels)
-# plot(weeks,c(0,rep(NA,length(weeks)-2),1))
-field <- "metric6"
-plot(1:35,c(0,rep(NA,33),max(data[field])),main=field)
+# pdf("test.pdf",width=12,height=7.5)
+png("test.png",width=640,height=640)
+weeks <- ordered(seq(levels),labels=levels)
+field <- "prediction"
+# data <- data[!data$Saison %in% c(2007,2018),]
+plot(weeks,c(0,rep(NA,length(weeks)-2),max(data[field])),main="",xlab="semaine r\u00e9elle (i)",ylab="pr\u00e9diction (S(i))")
+# plot(1:35,c(0,rep(NA,33),max(data[field])),main="",xlab="i",ylab=expression(phi))
 legend("topleft",legend=names(colors),fill=colors)
 for (year in unique(data$Saison)) {
     saison <- data[data$Saison==year,]
-    lines(saison$endIndex,saison[[field]],col=colors[as.character(year)])
-    # lines(saison$Semaine,saison$metric,col=colors[as.character(year)])
+    # lines(saison$endIndex,saison[[field]],col=colors[as.character(year)])
+    lines(saison$Semaine,saison[[field]],col=colors[as.character(year)])
 }
 dev.off()
 # system("xdg-open test.pdf")
-system("explorer test.pdf")
+system("explorer test.png")
