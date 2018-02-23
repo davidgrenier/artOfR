@@ -18,32 +18,38 @@ data$endIndex <-
 # data$max.B <- unlist(by(data$Positifs.B,data[1],cummax))
 data$max.Tests <- unlist(by(data$Tests,data[1],cummax))
 metric.Tests = data$Tests/data$max.Tests
-for (alpha in (10:50)/100) {
-    for (beta in (10:min(50,90-alpha))/100) {
-        # alpha <- 0.375
-        # beta <- 0.75-alpha
-        data$metric6 <- alpha*data$Ratio.A + beta*data$Ratio.B + (1-alpha-beta)*metric.Tests
+# for (alpha in (10:50)/100) {
+#     for (beta in (10:min(50,90-alpha))/100) {
+for (alpha in (10:90)/100) {
+    for (cuts in (4:12)) {
+        beta <- 1-alpha
+        data$metric6 <- alpha*data$Ratio + beta*metric.Tests
         hideYears <- c(2018,2007)
         subset <- data[data$endIndex < 10 & !data$Saison %in% hideYears,]
-        subset$cut <- cut(subset$metric6,breaks=8)
+        subset$cut <- cut(subset$metric6,breaks=cuts)
         result <-
             by(subset,subset["cut"],function (entries) {
                list(metric.moy=mean(entries$metric6),
-                 metric.ecart=sqrt(var(entries$metric6)),
+                 # metric.ecart=sqrt(var(entries$metric6)),
                  week.moy=round(mean(entries$endIndex),2),
                  week.ecart=round(sqrt(var(entries$endIndex)),2),
+                 week.ecartP=round(sqrt(var(entries$endIndex)),2)/round(mean(entries$endIndex),2),
                  num=length(unique(entries$Saison)))
             })
-        print(paste("alpha: ", alpha, " beta: ", beta))
         # print(result)
         for (entry in result) {
             if (is.null(entry))
                 next
-            if (entry$num == 6)
+            if (entry$num == 6 & entry$week.moy > 7 & entry$metric.moy > 0.14  & entry$metric.moy < 0.15 & entry$week.ecartP<0.12) {
+                print(paste("alpha: ", alpha, " cuts: ", cuts))
                 print(unlist(entry))
+            }
         }
     }
 }
+# [1] "alpha:  0.77  cuts:  9"
+#  metric.moy    week.moy  week.ecart week.ecartP         num 
+#   0.1479733   7.7500000   0.7100000   0.0916129   6.0000000 
 
 # metric.A = data$Positifs.A/data$max.A
 # metric.B = data$Positifs.B/data$max.B
@@ -55,7 +61,7 @@ for (alpha in (10:50)/100) {
 # data$metric4 <- data$Ratio + 0.45*ifelse(is.na(metric.Tests),1,metric.Tests)
 # data$metric5 <- data$Ratio + 0.55*ifelse(is.na(metric.Tests),1,metric.Tests)
 
-data$endIndex <- max(data$endIndex)-data$endIndex
+# data$endIndex <- max(data$endIndex)-data$endIndex
 
 pdf("test.pdf",width=12,height=7.5)
 # weeks <- ordered(seq(levels),labels=levels)
@@ -69,6 +75,5 @@ for (year in unique(data$Saison)) {
     # lines(saison$Semaine,saison$metric,col=colors[as.character(year)])
 }
 dev.off()
-system("xdg-open test.pdf")
-# system("explorer test.pdf")
-# ?pdf
+# system("xdg-open test.pdf")
+system("explorer test.pdf")
