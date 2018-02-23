@@ -28,10 +28,10 @@ for (alpha in (10:50)/100) {
         subset$cut <- cut(subset$metric6,breaks=8)
         result <-
             by(subset,subset["cut"],function (entries) {
-               list(mm=mean(entries$metric6),
-                 etm=sqrt(var(entries$metric6)),
-                 ms=mean(entries$endIndex),
-                 ets=sqrt(var(entries$endIndex)),
+               list(metric.moy=mean(entries$metric6),
+                 metric.ecart=sqrt(var(entries$metric6)),
+                 week.moy=round(mean(entries$endIndex),2),
+                 week.ecart=round(sqrt(var(entries$endIndex)),2),
                  num=length(unique(entries$Saison)))
             })
         print(paste("alpha: ", alpha, " beta: ", beta))
