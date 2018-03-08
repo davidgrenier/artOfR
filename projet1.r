@@ -44,6 +44,7 @@ run <- function (highway, rules) {
     }
     data.frame(rbindlist(highways))
 }
+
 rules.basic <- function (highway) {
     safety <- 5
     cartoofar <- list(position=9999999,v.type=car,lane=1,speed=0)
@@ -53,8 +54,15 @@ rules.basic <- function (highway) {
         # t <- lane[c(2:nrow(lane),1),]
         t <- rbind(tail(lane,-1),cartoofar)
         saferoom <- t$position + t$speed - (lane$position + v.length(lane$v.type) + safety + lane$speed)
-        accel <- pmin(saferoom, v.vmax(lane$v.type) - lane$speed, v.accel(lane$v.type))
-        lane$speed <- lane$speed + accel
+        accel <- pmin(v.vmax(lane$v.type) - lane$speed, v.accel(lane$v.type))
+        safeaccel <- pmin(saferoom, accel)
+        # if (i < hw$lane) {
+        #     left <= highway[[i+1]]
+        #     for (v in lane[safeaccel < accel,]) {
+        #     }
+        # }
+        # if (safeaccel < accel && i < hw$lane)
+        lane$speed <- lane$speed + safeaccel
         lane$position <- (lane$position + lane$speed)# %% hw$length
         lane$lane <- lane$lane + 1/(stepby*100)
         highway[[i]] <- lane
