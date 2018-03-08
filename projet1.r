@@ -26,7 +26,7 @@ lane.random <- function (lane) {
     data.frame(position,v.type,lane,speed)
 }
 highway <- lapply(seq(hw$lane), lane.random)
-stepby <- 8
+stepby <- 1
 duration <- stepby*100
 run <- function (highway, rules) {
     highways <- list()
@@ -46,15 +46,16 @@ run <- function (highway, rules) {
 }
 rules.basic <- function (highway) {
     safety <- 5
-    # cartoofar <- list(position=9999999,v.type=car,lane=1,speed=0)
+    cartoofar <- list(position=9999999,v.type=car,lane=1,speed=0)
     for (i in seq(highway)) {
         lane <- highway[[i]]
         n <- nrow(lane)
-        t <- lane[c(2:nrow(lane),1),]
+        # t <- lane[c(2:nrow(lane),1),]
+        t <- rbind(tail(lane,-1),cartoofar)
         saferoom <- t$position + t$speed - (lane$position + v.length(lane$v.type) + safety + lane$speed)
-        accel <- pmin(saferoom, lane$position + v.length(lane$v.type), v.vmax(lane$v.type)-lane$speed, v.accel(lane$v.type))
+        accel <- pmin(saferoom, v.vmax(lane$v.type) - lane$speed, v.accel(lane$v.type))
         lane$speed <- lane$speed + accel
-        lane$position <- (lane$position + lane$speed) %% hw$length
+        lane$position <- (lane$position + lane$speed)# %% hw$length
         lane$lane <- lane$lane + 1/(stepby*100)
         highway[[i]] <- lane
     }
