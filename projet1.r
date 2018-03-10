@@ -29,8 +29,8 @@ lane.random <- function (lane) {
 }
 highway <- lapply(seq(hw$lane), lane.random)
 
-stepby <- 2
-duration <- stepby*100
+stepby <- 1
+duration <- stepby*60
 run <- function (highway, rules) {
     allcars <- list()
     i <- 1
@@ -42,7 +42,6 @@ run <- function (highway, rules) {
             if (time >= duration)
                 break;
         }
-        # print(c("time", time))
         highway <- rules(highway)
         time <- time+1
     }
@@ -71,29 +70,29 @@ for (i in seq(highway)) {
 }
 
 rules.basic <- function (highway) {
-    cartoofar <- list(position=9999999,type=car,lane=0,original=0,speed=0,crashed=F)
-    cartoobehind <- list(position=-9999999,type=car,lane=0,original=0,speed=0,crashed=F)
+    virtual.ahead <- list(position=.Machine$integer.max,type=car,lane=0,original=0,speed=0,crashed=F)
+    virtual.behind <- list(position=-.Machine$integer.max,type=car,lane=0,original=0,speed=0,crashed=F)
     for (i in seq(highway)) {
         lane <- highway[[i]]
         n <- nrow(lane)
-        t <- rbind(tail(lane,-1),cartoofar)
+        t <- rbind(tail(lane,-1),virtual.ahead)
         accel <- ifelse(lane$crashed, 0, pmin(v.vmax(lane$type) - lane$speed, v.accel(lane$type)))
         safeaccel <- pmin(maxaccel(lane, t), accel)
-        slowed <- !lane$crashed & safeaccel < accel
+        slowed <- !lane$crashed & safeaccel < accel & safeaccel <= 0
         if (i < hw$lanes && any(slowed)) {
             left <- highway[[i+1]]
             checkbroken("broken-before", left)
-            tokeep <- rep(T,nrow(lane))
+            tokeep <- rep(T, nrow(lane))
             for (j in which(slowed)) {
                 v <- lane[j,]
-                insertat <- which(left$position > v.safe(v))[1]
-                if (is.na(insertat) || maxaccel(v, left[insertat,]) > max(safeaccel, 0)) {
-                    insertat <- if (is.na(insertat)) nrow(left)+1 else insertat
-                    if (insertat > 1 && v.safe(left[insertat-1,]) > v$position)
-                        next
-                    before <- row(left)[,1] < insertat
+                safe.ahead <- c(left$position > v.safe(v), T)
+                safe.behind <- c(T, v$position > v.safe(left))
+                can.accelerate <- c(maxaccel(v, left) > 0, T)
+                candidate <- safe.ahead & safe.behind & can.accelerate
+                if (any(candidate)) {
                     v$lane <- v$lane + 1
-                    left <- rbindlist(list(left[before,], v, left[!before,]))
+                    behind <- seq(nrow(left)) < which(candidate)
+                    left <- rbindlist(list(left[behind,], v, left[!behind,]))
                     tokeep[j] <- F
                     checkbroken("broken-after", left, v)
                 }
