@@ -13,7 +13,7 @@ v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
 v.vmax <- function (vs) ifelse(vs == truck, 29, 32.5)
 v.vmax <- function (vs) ifelse(vs == truck, 29, ifelse(vs == moto, 50, 32.5)) #faster moto
 v.safedistance <- function (vs) ifelse(vs == truck, 30, 10)#2sec*speed ?!? or 150ish brake distance/truck
-hw <- list(lanes = 3, vehicles = 200, length = 16000, change.period = 10)
+hw <- list(lanes = 3, vehicles = 200, length = 16000, change.period = 20)
 v.random <- function (n, lane) {
     against <- if (lane == hw$lane) 0.75 else 1
     carratio <- 0.73/against
@@ -32,7 +32,7 @@ lane.random <- function (lane) {
 }
 highway <- lapply(seq(hw$lane), lane.random)
 
-stepby <- 1
+stepby <- 4
 duration <- stepby*60
 run <- function (highway, rules) {
     allcars <- list()
@@ -126,7 +126,7 @@ rules.basic <- function (highway) {
     }
     for (i in hw$lanes:3) {
         lane <- highway[[i]]
-        cruising <- lane$speed == v.vmax(lane$type)
+        cruising <- lane$speed == v.vmax(lane$type) | lane$speed == 0
         result <- changelane(highway, i, -1, cruising)
         highway[[i]] <- result$origin
         highway[[i-1]] <- result$target
