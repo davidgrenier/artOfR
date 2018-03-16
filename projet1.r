@@ -12,7 +12,6 @@ v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
 v.vmax <- function (vs) ifelse(vs == truck, 29, 32.5)
 v.vmax <- function (vs) ifelse(vs == truck, 29, ifelse(vs == moto, 50, 32.5)) #faster moto
-v.safedistance <- function (vs) ifelse(vs == truck, 30, 10)#2sec*speed ?!? or 150ish brake distance/truck
 hw <- list(lanes = 3, vehicles = 200, length = 16000, change.period = 20)
 v.random <- function (n, lane) {
     against <- if (lane == hw$lane) 0.75 else 1
@@ -52,7 +51,7 @@ run <- function (highway, rules) {
 }
 
 v.nose <- function (lane) lane$position + v.length(lane$type)
-v.safe <- function (lane) v.nose(lane) + v.safedistance(lane$type)
+v.safe <- function (lane) v.nose(lane) + 2*lane$speed
 maxaccel <- function (v1s, v2s) v2s$position + v2s$speed - (v.safe(v1s) + v1s$speed)
 
 checkbroken <- function (text, lane, v=NULL) {
