@@ -10,7 +10,7 @@ c(car,moto,truck) %<-% levels
 v.length <- function (vs) ifelse(vs == moto, 2.2, ifelse(vs == car, 4.5, 14.6))
 v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
-v.vmax <- function (vs) ifelse(vs == truck, 27, ifelse(vs == moto, 33, 30))
+v.vmax <- function (vs) ifelse(vs == car, 30, ifelse(vs == truck, 27, 33))
 x.second.rule <- 2
 hw <- list(lanes = 3, vehicles = 200, length = 12000, change.period = 20)
 v.random <- function (n, lane) {
@@ -25,11 +25,11 @@ lane.random <- function (lane) {
     position <- (1:n)*(hw$length/n)
     type <- v.random(n, lane)
     speed <- (rbeta(n,2,0.5)/2+0.25)*v.vmax(type)
-    data.frame(position, type, lane, original = lane, speed, crashed=F, last.lanechange=0)
+    data.table(position, type, lane, original = lane, speed, crashed=F, last.lanechange=0)
 }
 highway <- lapply(seq(hw$lane), lane.random)
 
-stepby <- 4
+stepby <- 2
 duration <- stepby*60
 run <- function (highway, rules) {
     allcars <- list()
@@ -69,6 +69,18 @@ for (i in seq(highway)) {
     checkbroken(sprintf("initial-%i",i), hwi)
 }
 
+virtual.tofront <- function (lane) {
+    v <- lane[1,]
+    v$position <- v$position + hw$length
+    v
+}
+
+virtual.toback <- function (lane) {
+    v <- tail(lane,1)
+    v$position <- v$position - hw$length
+    v
+}
+
 changelane <- function (highway, o, t, candidates) {
     origin <- highway[[o]]
     target <- highway[[o+t]]
@@ -78,8 +90,9 @@ changelane <- function (highway, o, t, candidates) {
         checkbroken("broken-before", target)
         for (j in which(candidates)) {
             v <- origin[j,]
-            safe.ahead <- c(target$position > v.safe(v), T)
-            safe.behind <- c(T, v$position > v.safe(target))
+            safe.ahead <- c(target$position, virtual.tofront(target)$position) > v.safe(v)
+            behind <- rbind(virtual.toback(target), target)
+            safe.behind <- v$position > v.safe(behind)
             can.accelerate <- c(maxaccel(v, target) > 0, T)
             candidate <- safe.ahead & safe.behind & can.accelerate
             if (any(candidate)) {
@@ -98,11 +111,11 @@ changelane <- function (highway, o, t, candidates) {
 }
 
 rules.basic <- function (highway) {
-    virtual.ahead <- list(position=.Machine$integer.max,type=car,lane=0,original=0,speed=0,crashed=F,last.lanechange=0)
+    # virtual.ahead <- list(position=.Machine$integer.max,type=car,lane=0,original=0,speed=0,crashed=F,last.lanechange=0)
     for (i in seq(highway)) {
         lane <- highway[[i]]
         n <- nrow(lane)
-        t <- rbind(tail(lane,-1),virtual.ahead)
+        t <- rbind(lane[-1,], virtual.tofront(lane))
         accel <- ifelse(lane$crashed, 0, pmin(v.vmax(lane$type) - lane$speed, v.accel(lane$type)))
         safeaccel <- pmin(maxaccel(lane, t), accel)
         if (i < hw$lane) {
@@ -112,13 +125,24 @@ rules.basic <- function (highway) {
             highway[[i+1]] <- result$target
             safeaccel <- safeaccel[result$unchanged]
         }
-        lane$speed <- pmax(lane$speed + safeaccel,0)
-        lane$position <- lane$position + lane$speed
+        lane$speed <- pmax(lane$speed + safeaccel, 0)
+        newpos <- (lane$position + lane$speed) %% hw$length
+        # if (any(newpos < lane$position)) {
+        #     q <- lane
+        #     q$newpos <- newpos
+        #     print(rbindlist(list(q[1:10,],tail(q,10))))
+        # }
+        lane$position <- newpos
         lane$lane <- lane$lane + 1/duration
         lane$last.lanechange <- pmax(0, lane$last.lanechange-1)
-        crashed <- v.nose(head(lane, -1)) > tail(lane, -1)$position
-        lane$crashed <- lane$crashed | c(crashed,F) | c(F,crashed)
+        print(rbindlist(list(lane[1:3,],tail(lane,3))))
+        ahead <- rbind(lane[-1,], virtual.tofront(lane))
+        crashed <- v.nose(lane) > ahead$position
+        lane$crashed <- lane$crashed | crashed | c(tail(crashed, 1), head(crashed, -1))
         lane$speed <- ifelse(lane$crashed, 0, lane$speed)
+        neworder <- order(lane$position)
+        lane <- lane[neworder]
+        print(rbindlist(list(lane[1:3,],tail(lane,3))))
         highway[[i]] <- lane
     }
     for (i in hw$lanes:3) {
@@ -144,5 +168,6 @@ ggplot() +
     theme_dark()
 dev.off()
 system("xdg-open test.jpg")
+warnings()
 # system("xdg-open test.pdf")
 # system("explorer test.pdf")
