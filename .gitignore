@@ -5,6 +5,7 @@
 *.pgm
 *.txt
 *.png
+*.jpg
 *.aux
 *.log
 scratch.r

@@ -10,21 +10,19 @@ c(car,moto,truck) %<-% levels
 v.length <- function (vs) ifelse(vs == moto, 2.2, ifelse(vs == car, 4.5, 14.6))
 v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
-v.vmax <- function (vs) ifelse(vs == truck, 29, 32.5)
-v.vmax <- function (vs) ifelse(vs == truck, 29, ifelse(vs == moto, 50, 32.5)) #faster moto
-hw <- list(lanes = 3, vehicles = 200, length = 16000, change.period = 20)
+v.vmax <- function (vs) ifelse(vs == truck, 27, ifelse(vs == moto, 33, 30))
+x.second.rule <- 2
+hw <- list(lanes = 3, vehicles = 200, length = 12000, change.period = 20)
 v.random <- function (n, lane) {
     against <- if (lane == hw$lane) 0.75 else 1
     carratio <- 0.73/against
-    truckratio <- if (lane == hw$lane) 0 else 0.25/against
-    truckratio <- if (lane == hw$lane) 0 else 0.15/against
+    truckratio <- if (lane == hw$lane) 0 else 0.92/against
     vehicles <- rbinom(n, 1, carratio)
     factor(ifelse(vehicles, vehicles, rbinom(n, 1, truckratio) + 2), levels)
 }
 lane.random <- function (lane) {
     n <- hw$vehicles/ifelse(lane==1||lane==hw$lanes,2,1)
     position <- (1:n)*(hw$length/n)
-    # position <- sort(unique(trunc(runif(2*n, 1, hw$length)))[1:n])
     type <- v.random(n, lane)
     speed <- (rbeta(n,2,0.5)/2+0.25)*v.vmax(type)
     data.frame(position, type, lane, original = lane, speed, crashed=F, last.lanechange=0)
@@ -51,7 +49,7 @@ run <- function (highway, rules) {
 }
 
 v.nose <- function (lane) lane$position + v.length(lane$type)
-v.safe <- function (lane) v.nose(lane) + 2*lane$speed
+v.safe <- function (lane) v.nose(lane) + x.second.rule*lane$speed
 maxaccel <- function (v1s, v2s) v2s$position + v2s$speed - (v.safe(v1s) + v1s$speed)
 
 checkbroken <- function (text, lane, v=NULL) {
@@ -75,7 +73,7 @@ changelane <- function (highway, o, t, candidates) {
     origin <- highway[[o]]
     target <- highway[[o+t]]
     tokeep <- rep(T, nrow(origin))
-    candidates <- candidates & origin$last.lanechange == 0
+    candidates <- candidates & origin$last.lanechange == 0 & (o+t < hw$lanes | origin$type != truck)
     if (any(candidates)) {
         checkbroken("broken-before", target)
         for (j in which(candidates)) {
@@ -136,12 +134,15 @@ rules.basic <- function (highway) {
 highways <- run(highway, rules.basic)
 # print(highways)
 
-pdf("test.pdf",width=12)
+# pdf("test.pdf",width=12)
+jpeg("test.jpg", height= 540, width=1040)
 map <- aes(x=position, y=lane, size=type, color=type)
 ggplot() +
     scale_size_manual(values=c(0.1,0.1,0.1),labels=c("Car","Moto","Truck")) +
-    scale_color_manual(values=c("Black", "Red","Blue")) +
-    geom_point(map, highways, show.legend=F)
+    scale_color_manual(values=c("Black", "Yellow","Blue")) +
+    geom_point(map, highways, show.legend=F) +
+    theme_dark()
 dev.off()
-system("xdg-open test.pdf")
+system("xdg-open test.jpg")
+# system("xdg-open test.pdf")
 # system("explorer test.pdf")
