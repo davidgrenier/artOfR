@@ -12,7 +12,7 @@ v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
 v.vmax <- function (vs) ifelse(vs == car, 30, ifelse(vs == truck, 27, 33))
 x.second.rule <- 2
-hw <- list(lanes = 3, vehicles = 200, length = 12000, change.period = 20)
+hw <- list(lanes = 4, vehicles = 200, length = 12000, change.period = 20)
 v.random <- function (n, lane) {
     against <- if (lane == hw$lane) 0.75 else 1
     carratio <- 0.73/against
@@ -37,10 +37,10 @@ run <- function (highway, rules) {
     time <- 0
     repeat {
         if (time %% stepby == 0) {
-            allcars[[i]] <- rbindlist(highway)
-            i <- i+1
             if (time >= duration)
                 break;
+            allcars[[i]] <- rbindlist(highway)
+            i <- i+1
         }
         highway <- rules(highway)
         time <- time+1
@@ -126,23 +126,16 @@ rules.basic <- function (highway) {
             safeaccel <- safeaccel[result$unchanged]
         }
         lane$speed <- pmax(lane$speed + safeaccel, 0)
-        newpos <- (lane$position + lane$speed) %% hw$length
-        # if (any(newpos < lane$position)) {
-        #     q <- lane
-        #     q$newpos <- newpos
-        #     print(rbindlist(list(q[1:10,],tail(q,10))))
-        # }
-        lane$position <- newpos
+        lane$position <- lane$position + lane$speed
         lane$lane <- lane$lane + 1/duration
         lane$last.lanechange <- pmax(0, lane$last.lanechange-1)
-        print(rbindlist(list(lane[1:3,],tail(lane,3))))
         ahead <- rbind(lane[-1,], virtual.tofront(lane))
         crashed <- v.nose(lane) > ahead$position
         lane$crashed <- lane$crashed | crashed | c(tail(crashed, 1), head(crashed, -1))
         lane$speed <- ifelse(lane$crashed, 0, lane$speed)
+        lane$position <- lane$position %% hw$length
         neworder <- order(lane$position)
         lane <- lane[neworder]
-        print(rbindlist(list(lane[1:3,],tail(lane,3))))
         highway[[i]] <- lane
     }
     for (i in hw$lanes:3) {
