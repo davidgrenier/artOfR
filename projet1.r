@@ -1,34 +1,9 @@
-# install.packages("zeallot",'.',dep=T,repos="http://cran.stat.sfu.ca")
-# Base-8000-2sec: 20, 51, 55, 72
-# Base-12000-2sec: 4, 44, 57, 80
-# Base-16000-2sec: 0, 38, 74, 59
-# Aggressive-8000-2sec: 0, 59, 52, 72
-# Aggressive-12000-2sec: 0, 39, 52, 86
-# Aggressive-16000-2sec: 0, 31, 57, 83
+# install.packages("ggthemes",'.',dep=T,repos="http://cran.stat.sfu.ca")
 .libPaths('.')
 library(ggplot2)
 library(zeallot)
 library(data.table)
-models <-
-    data.frame(
-        model=rep(c(rep("Base",3),rep("Aggr",3)),3),
-        length=c(rep("8 km",6),rep("12 km",6),rep("16 km",6)),
-        # model=c(rep("Base-8000",3),rep("Aggr-8000",3),rep("Base-12000",3),rep("Aggr-12000",3),rep("Base-16000",3),rep("Aggr-16000",3)),
-        # model=c("Base-8000","Aggr-8000","Base-12000","Aggr-12000","Base-16000","Aggr-16000"),
-        crash=c(20,0,4,0,0,0),
-        vehicules=c(51,55,72,59,52,72,44,57,80,39,52,68,38,74,59,31,57,83),
-        lane=rep(c("1","2","3"),6)
-    )
-jpeg("test.jpg", height= 540, width=1040)
-ggplot(data=models,aes(x=model,y=vehicules,fill=lane)) +
-    geom_bar(stat="identity") +
-    facet_wrap(~length,nrow=1) +
-    scale_fill_brewer(palette=16) +
-    theme_gray()
-#,position=position_dodge())
-dev.off()
-system("xdg-open test.jpg")
-
+library(ggthemes)
 # system.time({
 geom <- function (xs) exp(sum(log(xs[xs>0]),na.rm=T)/length(xs))
 set.seed(335)
@@ -39,16 +14,16 @@ v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
 v.vmax <- function (vs) ifelse(vs == car, 30, ifelse(vs == truck, 27, 33))
 x.second.rule <- 2
-hw <- list(lanes = 3, vehicles = 200, length = 16000, change.period = 10)
+hw <- list(lanes = 3, vehicles = 200, length = 8000, change.period = 10)
 v.random <- function (n, lane) {
     against <- if (lane == hw$lane) 0.75 else 1
     carratio <- 0.73/against
-    truckratio <- if (lane == hw$lane) 0 else 0.92/against
+    truckratio <- if (lane == hw$lane) 0 else 0.92
     vehicles <- rbinom(n, 1, carratio)
     factor(ifelse(vehicles, vehicles, rbinom(n, 1, truckratio) + 2), levels)
 }
 lane.random <- function (lane) {
-    n <- hw$vehicles/ifelse(lane==1||lane==hw$lanes,2,1)
+    n <- hw$vehicles*ifelse(lane==1||lane==hw$lanes,0.5,1)
     position <- (1:n)*(hw$length/n)
     type <- v.random(n, lane)
     speed <- (rbeta(n,2,0.5)/2+0.25)*v.vmax(type)
@@ -56,7 +31,7 @@ lane.random <- function (lane) {
 }
 highway <- lapply(seq(hw$lane), lane.random)
 
-stepby <- 4
+stepby <- 1
 duration <- stepby*60
 run <- function (highway, rules) {
     overflow <- rep(0, hw$lanes)
@@ -218,19 +193,49 @@ rules.aggressive <- function (highway, overflow) {
 
 highways <- run(highway, rules.aggressive)
 
-# pdf("test.pdf",width=12)
 jpeg("test.jpg", height= 540, width=1040)
-# png("test.png", height= 540, width=1040)
 map <- aes(x=position, y=lane, size=type, color=type)
 ggplot() +
     scale_size_manual(values=c(0.1,0.1,0.1),labels=c("Car","Moto","Truck")) +
-    scale_color_manual(values=c("Black", "Yellow","Blue")) +
-    geom_point(map, highways, show.legend=F) +
-    theme_dark() +
+    geom_point(map, highways) +#, show.legend=F) +
     labs(x="Position (m)",y="Voie/Temps") +
-    scale_y_continuous(breaks = 1:hw$lane)
+    scale_y_continuous(breaks = 1:hw$lane) +
+    # theme_wsj() + scale_colour_wsj("colors6")
+    # theme_calc() + scale_color_calc()
+    # theme_hc() + scale_color_hc()
+    # theme_stat() + scale_color_stat()
+    theme_dark() + scale_color_manual(values=c("Black", "Yellow","Blue"))
 dev.off()
 system("xdg-open test.jpg")
 # })
-# system("xdg-open test.pdf")
-# system("explorer test.pdf")
+
+# Base-8000-2sec: 20, 51, 55, 72
+# Base-12000-2sec: 4, 44, 57, 80
+# Base-16000-2sec: 0, 38, 74, 59
+# Aggressive-8000-2sec: 0, 59, 52, 72
+# Aggressive-12000-2sec: 0, 39, 52, 86
+# Aggressive-16000-2sec: 0, 31, 57, 83
+.libPaths('.')
+.f <- function () {
+library(ggplot2)
+models <-
+    data.frame(
+        model=rep(c(rep("Base",3),rep("Aggr",3)),3),
+        length=c(rep("8 km",6),rep("12 km",6),rep("16 km",6)),
+        # model=c(rep("Base-8000",3),rep("Aggr-8000",3),rep("Base-12000",3),rep("Aggr-12000",3),rep("Base-16000",3),rep("Aggr-16000",3)),
+        # model=c("Base-8000","Aggr-8000","Base-12000","Aggr-12000","Base-16000","Aggr-16000"),
+        crash=c(20,0,4,0,0,0),
+        vehicules=c(51,55,72,59,52,72,44,57,80,39,52,68,38,74,59,31,57,83),
+        lane=rep(c("1","2","3"),6)
+    )
+jpeg("test.jpg", height= 540, width=1040)
+ggplot(data=models,aes(x=model,y=vehicules,fill=lane)) +
+    geom_bar(stat="identity") +
+    facet_wrap(~length,nrow=1) +
+    scale_fill_brewer(palette=16) +
+    # theme_stata()
+    theme_gray()
+#,position=position_dodge())
+dev.off()
+system("xdg-open test.jpg")
+}
