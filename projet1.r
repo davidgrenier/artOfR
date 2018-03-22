@@ -194,17 +194,16 @@ rules.aggressive <- function (highway, overflow) {
 highways <- run(highway, rules.aggressive)
 
 jpeg("test.jpg", height= 540, width=1040)
-map <- aes(x=position, y=lane, size=type, color=type)
+map <- aes(x=position, y=lane, color=type)
 ggplot() +
-    scale_size_manual(values=c(0.1,0.1,0.1),labels=c("Car","Moto","Truck")) +
-    geom_point(map, highways) +#, show.legend=F) +
-    labs(x="Position (m)",y="Voie/Temps") +
+    geom_point(map, highways, size=0.1) +
+    labs(x="Position (m)",y="Voie/Temps",color="Type") +
     scale_y_continuous(breaks = 1:hw$lane) +
     # theme_wsj() + scale_colour_wsj("colors6")
     # theme_calc() + scale_color_calc()
     # theme_hc() + scale_color_hc()
     # theme_stat() + scale_color_stat()
-    theme_dark() + scale_color_manual(values=c("Black", "Yellow","Blue"))
+    theme_dark() + scale_color_manual(values=c("Black", "Yellow","Blue"),labels=c("Voiture","Moto","Semi-r"))
 dev.off()
 system("xdg-open test.jpg")
 # })
