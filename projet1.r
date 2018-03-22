@@ -14,16 +14,16 @@ v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
 v.vmax <- function (vs) ifelse(vs == car, 30, ifelse(vs == truck, 27, 33))
 x.second.rule <- 2
-hw <- list(lanes = 3, vehicles = 200, length = 8000, change.period = 10)
+hw <- list(lanes = 3, vehicles = 160, length = 8000, change.period = 10)
 v.random <- function (n, lane) {
-    against <- if (lane == hw$lane) 0.75 else 1
-    carratio <- 0.73/against
-    truckratio <- if (lane == hw$lane) 0 else 0.92
+    against <- if (lane == hw$lane) 0.96 else 1
+    carratio <- 0.94/against
+    truckratio <- if (lane == hw$lane) 0 else 0.75
     vehicles <- rbinom(n, 1, carratio)
     factor(ifelse(vehicles, vehicles, rbinom(n, 1, truckratio) + 2), levels)
 }
 lane.random <- function (lane) {
-    n <- hw$vehicles*ifelse(lane==1||lane==hw$lanes,0.5,1)
+    n <- hw$vehicles*ifelse(lane==1||lane==hw$lanes,0.75,1)
     position <- (1:n)*(hw$length/n)
     type <- v.random(n, lane)
     speed <- (rbeta(n,2,0.5)/2+0.25)*v.vmax(type)
@@ -31,7 +31,7 @@ lane.random <- function (lane) {
 }
 highway <- lapply(seq(hw$lane), lane.random)
 
-stepby <- 1
+stepby <- 2
 duration <- stepby*60
 run <- function (highway, rules) {
     overflow <- rep(0, hw$lanes)
@@ -208,9 +208,10 @@ ggplot() +
     # theme_stata() + scale_color_stata(scheme="s1color", labels=c("Voiture","Moto","Semi-r"))
     # theme_dark() + scale_color_manual(values=c("Black", "Yellow","Blue"),labels=c("Voiture","Moto","Semi-r"))
     # scale_color_manual(values=c("Black", "Red","Blue"),labels=c("Voiture","Moto","Semi-r"))
-    scale_color_manual(values=c("#a08427", "#a70500","#016291"),labels=c("Voiture","Moto","Semi-r"))
+    # scale_color_manual(values=c("#a08427", "#a70500","#016291"),labels=c("Voiture","Moto","Semi-r"))
+    scale_color_manual(values=c("#FF0000", "#00FF00","#0000FF"),labels=c("Voiture","Moto","Semi-r"))
 dev.off()
-system("xdg-open test.jpg")
+system("explorer test.jpg")
 # })
 
 # Base-8000-2sec: 20, 51, 55, 72
