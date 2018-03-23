@@ -14,7 +14,7 @@ v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
 v.vmax <- function (vs) ifelse(vs == car, 30, ifelse(vs == truck, 27, 33))
 x.second.rule <- 2
-hw <- list(lanes = 3, vehicles = 140, length = 8000, change.period = 10)
+hw <- list(lanes = 3, vehicles = 120, length = 8000, change.period = 10)
 v.random <- function (n, lane) {
     carratio <- if (lane == hw$lane) 0.98 else 0.94
     truckratio <- if (lane == hw$lane) 0 else 0.66
@@ -30,7 +30,7 @@ lane.random <- function (lane) {
 }
 highway <- lapply(seq(hw$lane), lane.random)
 
-stepby <- 10
+stepby <- 2
 duration <- stepby*60
 run <- function (highway, rules) {
     allcars <- list()
@@ -59,7 +59,7 @@ v.nose <- function (lane) lane$position + v.length(lane$type)
 v.safe <- function (lane) v.nose(lane) + x.second.rule*lane$speed
 maxaccel <- function (v1s, v2s) {
     accel <- v2s$position + v2s$speed - (v.safe(v1s) + v1s$speed)
-    ifelse(accel < 0, accel /2, accel)
+    ifelse(accel < 0, accel, accel)
 }
 
 checkbroken <- function (text, lane, v=NULL) {
@@ -203,22 +203,34 @@ ggplot() +
     guides(color=guide_legend(override.aes = list(size=5))) +
     scale_color_manual(values=c("#597d02", "Blue","#890000"),labels=c("Voiture","Moto","Semi-r"))
 dev.off()
-system("xdg-open test.jpg")
+system("explorer test.jpg")
 warnings()
 # })
 
-# Basic 120/160/120
-# 26.9    13.7    25.8
-# Basic 105/140/105
-# 27.2    18.3    30.0
-# Basic 100/120/100
-# 27.8    27.0    30.0
-# Aggressif 120/160/120
-# 27.4    15.6    20.7
-# Aggressif 105/140/105
-# 27.7    18.3    25.1
-# Aggressif 100/120/100
-# 27.8    27.0    30.0
+# Base-150/200/150
+# 25.8    13.6    23.5
+# 1.86    0.79    0.65
+# Base-120/160/120
+# 27.4    18.2    30.0
+# 0.39    0.84    0.07
+# Base-90/120/90
+# 27.5    30.0    30.1
+# 0.78    ~0  0.02
+# Aggr-150/200/150
+# 24.9    13.6    24.5
+# 2.01    0.77    0.62
+# Aggr-120/160/120
+# 27.6    17.5    30.0
+# 0.41    1.48    0.02
+# Aggr-90/120/90
+# 27.5    30.0    30.1
+# 0.78    ~0  0.02
+# Base-225/300/225 - 4 accidents
+# 13.5    7.9 16.5
+# 0.46    0.45    0.83
+# Aggr-225/300/225 - 0 accidents
+# 14.1    8.8 13.8
+# 0.62    0.22    0.25
 .libPaths('.')
 .f <- function () {
 library(ggplot2)
@@ -241,5 +253,5 @@ ggplot(data=models,aes(x=model,y=vehicules,fill=lane)) +
     theme_gray()
 #,position=position_dodge())
 dev.off()
-system("xdg-open test.jpg")
+system("explorer test.jpg")
 }
