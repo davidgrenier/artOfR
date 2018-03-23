@@ -16,9 +16,8 @@ v.vmax <- function (vs) ifelse(vs == car, 30, ifelse(vs == truck, 27, 33))
 x.second.rule <- 2
 hw <- list(lanes = 3, vehicles = 160, length = 8000, change.period = 10)
 v.random <- function (n, lane) {
-    against <- if (lane == hw$lane) 0.96 else 1
-    carratio <- 0.94/against
-    truckratio <- if (lane == hw$lane) 0 else 0.75
+    carratio <- if (lane == hw$lane) 0.98 else 0.94
+    truckratio <- if (lane == hw$lane) 0 else 0.66
     vehicles <- rbinom(n, 1, carratio)
     factor(ifelse(vehicles, vehicles, rbinom(n, 1, truckratio) + 2), levels)
 }
@@ -31,11 +30,11 @@ lane.random <- function (lane) {
 }
 highway <- lapply(seq(hw$lane), lane.random)
 
-stepby <- 2
+stepby <- 10
 duration <- stepby*60
 run <- function (highway, rules) {
-    overflow <- rep(0, hw$lanes)
     allcars <- list()
+    speeds <- data.frame()
     i <- 1
     time <- 0
     repeat {
@@ -45,19 +44,22 @@ run <- function (highway, rules) {
             allcars[[i]] <- rbindlist(highway)
             i <- i+1
         }
-        result <- rules(highway, overflow)
-        highway <- result$highway
-        overflow <- result$overflow
+        highway <- rules(highway)
         time <- time+1
+        if (time %% 60 == 0)
+            speeds <- rbind(speeds, sapply(highway, function (lane) lane[,mean(speed)]))
     }
+    print(apply(speeds,2,mean))
     print(sum(sapply(highway, function (lane) lane[,sum(crashed)])))
-    print(overflow)
     data.frame(rbindlist(allcars))
 }
 
 v.nose <- function (lane) lane$position + v.length(lane$type)
 v.safe <- function (lane) v.nose(lane) + x.second.rule*lane$speed
-maxaccel <- function (v1s, v2s) v2s$position + v2s$speed - (v.safe(v1s) + v1s$speed)
+maxaccel <- function (v1s, v2s) {
+    accel <- v2s$position + v2s$speed - (v.safe(v1s) + v1s$speed)
+    ifelse(accel < 0, accel /1.5, accel)
+}
 
 checkbroken <- function (text, lane, v=NULL) {
     h <- head(lane,-1)
@@ -117,7 +119,7 @@ changelane <- function (highway, i, t, candidates) {
     list(origin = origin, target = target, unchanged = tokeep)
 }
 
-rules.basic <- function (highway, overflow) {
+rules.basic <- function (highway) {
     for (i in seq(highway)) {
         lane <- highway[[i]]
         n <- nrow(lane)
@@ -142,7 +144,6 @@ rules.basic <- function (highway, overflow) {
         lane$crashed <- lane$crashed | crashed | c(tail(crashed, 1), head(crashed, -1))
         lane[, speed := ifelse(crashed, 0, speed)]
         newposition <- lane$position %% hw$length
-        overflow[i] <- overflow[i] + sum(lane$position != newposition)
         lane[, position := newposition]
         neworder <- order(lane$position)
         lane <- lane[neworder]
@@ -155,10 +156,10 @@ rules.basic <- function (highway, overflow) {
         highway[[i]] <- result$origin
         highway[[i-1]] <- result$target
     }
-    list(highway=highway, overflow=overflow)
+    highway
 }
 
-rules.aggressive <- function (highway, overflow) {
+rules.aggressive <- function (highway) {
     for (i in seq(highway)) {
         lane <- highway[[i]]
         n <- nrow(lane)
@@ -182,13 +183,12 @@ rules.aggressive <- function (highway, overflow) {
         lane$crashed <- lane$crashed | crashed | c(tail(crashed, 1), head(crashed, -1))
         lane[, speed := ifelse(crashed, 0, speed)]
         newposition <- lane$position %% hw$length
-        overflow[i] <- overflow[i] + sum(lane$position != newposition)
         lane[, position := newposition]
         neworder <- order(lane$position)
         lane <- lane[neworder]
         highway[[i]] <- lane
     }
-    list(highway=highway, overflow=overflow)
+    highway
 }
 
 highways <- run(highway, rules.aggressive)
@@ -200,26 +200,24 @@ ggplot() +
     labs(x="Position (m)",y="Voie/Temps",color="Type") +
     scale_y_continuous(breaks = 1:hw$lane) +
     guides(color=guide_legend(override.aes = list(size=5))) +
-    # theme_wsj() + scale_colour_wsj("colors6")
-    # theme_calc() + scale_color_calc()
-    # theme_hc() + scale_color_hc()
-    # theme_stata() + scale_color_stata(labels=c("Voiture","Moto","Semi-r"))
-    # theme_stata() + scale_color_stata(scheme="s1rcolor", labels=c("Voiture","Moto","Semi-r"))
-    # theme_stata() + scale_color_stata(scheme="s1color", labels=c("Voiture","Moto","Semi-r"))
-    # theme_dark() + scale_color_manual(values=c("Black", "Yellow","Blue"),labels=c("Voiture","Moto","Semi-r"))
-    # scale_color_manual(values=c("Black", "Red","Blue"),labels=c("Voiture","Moto","Semi-r"))
-    # scale_color_manual(values=c("#a08427", "#a70500","#016291"),labels=c("Voiture","Moto","Semi-r"))
-    scale_color_manual(values=c("#FF0000", "#00FF00","#0000FF"),labels=c("Voiture","Moto","Semi-r"))
+    scale_color_manual(values=c("#597d02", "Blue","#890000"),labels=c("Voiture","Moto","Semi-r"))
 dev.off()
-system("explorer test.jpg")
+system("xdg-open test.jpg")
+warnings()
 # })
 
-# Base-8000-2sec: 20, 51, 55, 72
-# Base-12000-2sec: 4, 44, 57, 80
-# Base-16000-2sec: 0, 38, 74, 59
-# Aggressive-8000-2sec: 0, 59, 52, 72
-# Aggressive-12000-2sec: 0, 39, 52, 86
-# Aggressive-16000-2sec: 0, 31, 57, 83
+# Basic 120/160/120
+# 26.9    13.7    25.8
+# Basic 105/140/105
+# 27.2    18.3    30.0
+# Basic 100/120/100
+# 27.8    27.0    30.0
+# Aggressif 120/160/120
+# 27.4    15.6    20.7
+# Aggressif 105/140/105
+# 27.7    18.3    25.1
+# Aggressif 100/120/100
+# 27.8    27.0    30.0
 .libPaths('.')
 .f <- function () {
 library(ggplot2)
