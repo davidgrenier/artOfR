@@ -14,7 +14,7 @@ v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
 v.vmax <- function (vs) ifelse(vs == car, 30, ifelse(vs == truck, 27, 33))
 x.second.rule <- 2
-hw <- list(lanes = 3, vehicles = 160, length = 8000, change.period = 10)
+hw <- list(lanes = 3, vehicles = 140, length = 8000, change.period = 10)
 v.random <- function (n, lane) {
     carratio <- if (lane == hw$lane) 0.98 else 0.94
     truckratio <- if (lane == hw$lane) 0 else 0.66
@@ -50,6 +50,7 @@ run <- function (highway, rules) {
             speeds <- rbind(speeds, sapply(highway, function (lane) lane[,mean(speed)]))
     }
     print(apply(speeds,2,mean))
+    print(apply(speeds,2,sd))
     print(sum(sapply(highway, function (lane) lane[,sum(crashed)])))
     data.frame(rbindlist(allcars))
 }
@@ -58,7 +59,7 @@ v.nose <- function (lane) lane$position + v.length(lane$type)
 v.safe <- function (lane) v.nose(lane) + x.second.rule*lane$speed
 maxaccel <- function (v1s, v2s) {
     accel <- v2s$position + v2s$speed - (v.safe(v1s) + v1s$speed)
-    ifelse(accel < 0, accel /1.5, accel)
+    ifelse(accel < 0, accel /2, accel)
 }
 
 checkbroken <- function (text, lane, v=NULL) {
@@ -191,7 +192,7 @@ rules.aggressive <- function (highway) {
     highway
 }
 
-highways <- run(highway, rules.aggressive)
+highways <- run(highway, rules.basic)
 
 jpeg("test.jpg", height= 540, width=1040)
 map <- aes(x=position, y=lane, color=type)
