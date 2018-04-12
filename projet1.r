@@ -4,7 +4,6 @@ library(ggplot2)
 library(zeallot)
 library(data.table)
 library(ggthemes)
-# system.time({
 geom <- function (xs) exp(sum(log(xs[xs>0]),na.rm=T)/length(xs))
 set.seed(335)
 levels <- factor(1:3)
@@ -14,7 +13,7 @@ v.mass <- function (vs) ifelse(vs == moto, 175, ifelse(vs == car, 1850, 9750))
 v.accel <- function (vs) ifelse(vs == moto, 7, ifelse(vs == car, 3, 0.6))
 v.vmax <- function (vs) ifelse(vs == car, 30, ifelse(vs == truck, 27, 33))
 x.second.rule <- 2
-hw <- list(lanes = 3, vehicles = 120, length = 8000, change.period = 10)
+hw <- list(lanes = 3, vehicles = 300, length = 8000, change.period = 10)
 v.random <- function (n, lane) {
     carratio <- if (lane == hw$lane) 0.98 else 0.94
     truckratio <- if (lane == hw$lane) 0 else 0.66
@@ -31,9 +30,10 @@ lane.random <- function (lane) {
 highway <- lapply(seq(hw$lane), lane.random)
 str(highway)
 
-stepby <- 2
+stepby <- 15
 duration <- stepby*60
 run <- function (highway, rules) {
+    overflow <- rep(0, hw$lanes)
     allcars <- list()
     speeds <- data.frame()
     i <- 1
@@ -45,7 +45,10 @@ run <- function (highway, rules) {
             allcars[[i]] <- rbindlist(highway)
             i <- i+1
         }
-        highway <- rules(highway)
+        result <- rules(highway, overflow)
+        # highway <- rules(highway)
+        highway <- result$highway
+        overflow <- result$overflow
         time <- time+1
         if (time %% 60 == 0)
             speeds <- rbind(speeds, sapply(highway, function (lane) lane[,mean(speed)]))
@@ -53,6 +56,7 @@ run <- function (highway, rules) {
     print(apply(speeds,2,mean))
     print(apply(speeds,2,sd))
     print(sum(sapply(highway, function (lane) lane[,sum(crashed)])))
+    print(overflow)
     data.frame(rbindlist(allcars))
 }
 
@@ -60,7 +64,7 @@ v.nose <- function (lane) lane$position + v.length(lane$type)
 v.safe <- function (lane) v.nose(lane) + x.second.rule*lane$speed
 maxaccel <- function (v1s, v2s) {
     accel <- v2s$position + v2s$speed - (v.safe(v1s) + v1s$speed)
-    ifelse(accel < 0, accel, accel)
+    ifelse(accel < 0, accel/2, accel)
 }
 
 checkbroken <- function (text, lane, v=NULL) {
@@ -121,7 +125,7 @@ changelane <- function (highway, i, t, candidates) {
     list(origin = origin, target = target, unchanged = tokeep)
 }
 
-rules.basic <- function (highway) {
+rules.basic <- function (highway, overflow) {
     for (i in seq(highway)) {
         lane <- highway[[i]]
         n <- nrow(lane)
@@ -146,6 +150,7 @@ rules.basic <- function (highway) {
         lane$crashed <- lane$crashed | crashed | c(tail(crashed, 1), head(crashed, -1))
         lane[, speed := ifelse(crashed, 0, speed)]
         newposition <- lane$position %% hw$length
+        overflow[i] <- overflow[i] + sum(lane$position != newposition)
         lane[, position := newposition]
         neworder <- order(lane$position)
         lane <- lane[neworder]
@@ -153,15 +158,16 @@ rules.basic <- function (highway) {
     }
     for (i in hw$lanes:3) {
         lane <- highway[[i]]
-        cruising <- lane[, speed == 0 | speed == v.vmax(type)]
+        # cruising <- lane[, speed == 0 | speed == v.vmax(type)]
+        cruising <- lane[,last.lanechange == 0]
         result <- changelane(highway, i, -1, cruising)
         highway[[i]] <- result$origin
         highway[[i-1]] <- result$target
     }
-    highway
+    list(highway=highway, overflow=overflow)
 }
 
-rules.aggressive <- function (highway) {
+rules.aggressive <- function (highway, overflow) {
     for (i in seq(highway)) {
         lane <- highway[[i]]
         n <- nrow(lane)
@@ -185,15 +191,16 @@ rules.aggressive <- function (highway) {
         lane$crashed <- lane$crashed | crashed | c(tail(crashed, 1), head(crashed, -1))
         lane[, speed := ifelse(crashed, 0, speed)]
         newposition <- lane$position %% hw$length
+        overflow[i] <- overflow[i] + sum(lane$position != newposition)
         lane[, position := newposition]
         neworder <- order(lane$position)
         lane <- lane[neworder]
         highway[[i]] <- lane
     }
-    highway
+    list(highway=highway, overflow=overflow)
 }
 
-highways <- run(highway, rules.basic)
+highways <- run(highway, rules.aggressive)
 
 jpeg("test.jpg", height= 540, width=1040)
 map <- aes(x=position, y=lane, color=type)
@@ -206,7 +213,50 @@ ggplot() +
 dev.off()
 system("explorer test.jpg")
 warnings()
-# })
+
+# Base-90/120/90
+# 27.5    30.0    30.1
+# 0.78    ~0  0.02
+# 281 405 304
+Aggr-90/120/90
+27.5    30.0    30.1
+
+
+# Base-90/120/90
+# 27.5    30.0    30.1
+# 0.78    ~0  0.02
+# 281 405 304
+# Aggr-90/120/90
+# 27.5    30.0    30.1
+# 0.78    ~0  0.02
+# 281 405 304
+
+# Base-120/160/120
+# 27.3    18.9    30.0
+# 0.4 0.66    0.05
+# 345 361 403
+# Aggr-120/160/120
+# 27.6    17.5   30.0
+# 0.41    1.48    0.02
+# 311 356 407
+
+# Base-150/200/150
+# 23.25 13.46   27.28
+# 0.73  0.7 1.68
+# 379 341 402
+# Aggr-150/200/150
+# 24.9    13.6    24.5
+# 2.01    0.77    0.62
+# 386 337 388
+
+# Basic-225/300/225 - 6 accidents
+# 13.7    7.5 18.6
+# 0.39    0.29    1.15
+# 339 299 366
+# Aggr-225/300/225 - 0 accidents
+# 14.1    8.8 13.8
+# 0.62    0.22    0.25
+# 337 308 344
 
 # Base-150/200/150
 # 25.8    13.6    23.5
@@ -217,42 +267,9 @@ warnings()
 # Base-90/120/90
 # 27.5    30.0    30.1
 # 0.78    ~0  0.02
-# Aggr-150/200/150
-# 24.9    13.6    24.5
-# 2.01    0.77    0.62
-# Aggr-120/160/120
-# 27.6    17.5    30.0
-# 0.41    1.48    0.02
-# Aggr-90/120/90
-# 27.5    30.0    30.1
-# 0.78    ~0  0.02
 # Base-225/300/225 - 4 accidents
 # 13.5    7.9 16.5
 # 0.46    0.45    0.83
-# Aggr-225/300/225 - 0 accidents
-# 14.1    8.8 13.8
-# 0.62    0.22    0.25
-.libPaths('.')
-.f <- function () {
-library(ggplot2)
-models <-
-    data.frame(
-        model=rep(c(rep("Base",3),rep("Aggr",3)),3),
-        length=c(rep("8 km",6),rep("12 km",6),rep("16 km",6)),
-        # model=c(rep("Base-8000",3),rep("Aggr-8000",3),rep("Base-12000",3),rep("Aggr-12000",3),rep("Base-16000",3),rep("Aggr-16000",3)),
-        # model=c("Base-8000","Aggr-8000","Base-12000","Aggr-12000","Base-16000","Aggr-16000"),
-        crash=c(20,0,4,0,0,0),
-        vehicules=c(51,55,72,59,52,72,44,57,80,39,52,68,38,74,59,31,57,83),
-        lane=rep(c("1","2","3"),6)
-    )
-jpeg("test.jpg", height= 540, width=1040)
-ggplot(data=models,aes(x=model,y=vehicules,fill=lane)) +
-    geom_bar(stat="identity") +
-    facet_wrap(~length,nrow=1) +
-    scale_fill_brewer(palette=16) +
-    # theme_stata()
-    theme_gray()
-#,position=position_dodge())
-dev.off()
-system("explorer test.jpg")
-}
+# Base-225/300/225 - 6 accidents
+# 13.75   7.5 18.6
+# 0.39    0.29    1.15
