@@ -29,6 +29,7 @@ lane.random <- function (lane) {
     data.table(position, type, lane = lane-0.5, speed, crashed=F, last.lanechange=0)
 }
 highway <- lapply(seq(hw$lane), lane.random)
+str(highway)
 
 stepby <- 2
 duration <- stepby*60
